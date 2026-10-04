@@ -31,4 +31,19 @@ return [
         'gateway' => env('BILLING_PAYMENT_GATEWAY', 'fake'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Payment provider webhooks
+    |--------------------------------------------------------------------------
+    |
+    | Signed with HMAC-SHA256 (see App\Domain\Payments\WebhookSignature).
+    | Requests older than the tolerance are rejected as possible replays.
+    |
+    */
+
+    'webhooks' => [
+        'secret' => env('BILLING_WEBHOOK_SECRET', ''),
+        'tolerance' => (int) env('BILLING_WEBHOOK_TOLERANCE', 300),
+    ],
+
 ];
