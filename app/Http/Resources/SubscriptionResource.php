@@ -26,6 +26,7 @@ class SubscriptionResource extends JsonResource
             'trial_ends_at' => $this->trial_ends_at?->toIso8601String(),
             'cancel_at_period_end' => $this->cancel_at_period_end,
             'canceled_at' => $this->canceled_at?->toIso8601String(),
+            'latest_invoice' => InvoiceResource::make($this->whenLoaded('latestInvoice')),
         ];
     }
 }

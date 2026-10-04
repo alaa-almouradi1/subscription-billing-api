@@ -1,8 +1,7 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+// Renewal is idempotent, so running it often is safe; withoutOverlapping()
+// only avoids wasted work when a run takes longer than a minute.
+Schedule::command('billing:renew')->everyMinute()->withoutOverlapping();
