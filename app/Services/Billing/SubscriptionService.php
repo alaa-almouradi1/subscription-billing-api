@@ -12,13 +12,15 @@ use Illuminate\Support\Facades\DB;
 
 class SubscriptionService
 {
+    public function __construct(private readonly InvoiceIssuer $issuer) {}
+
     public function subscribe(Customer $customer, Plan $plan): Subscription
     {
         if (! $plan->active) {
             throw SubscriptionRejected::planInactive($plan->code);
         }
 
-        if ($plan->trial_days === 0 && $customer->default_payment_method === null) {
+        if ($plan->trial_days === 0 && $plan->amount > 0 && $customer->default_payment_method === null) {
             throw SubscriptionRejected::missingPaymentMethod();
         }
 
@@ -55,6 +57,15 @@ class SubscriptionService
             }
 
             $subscription->save();
+
+            if ($subscription->status === SubscriptionStatus::Active) {
+                // Billing in advance: the first period is invoiced right away.
+                $this->issuer->issueForPeriod(
+                    $subscription,
+                    $subscription->current_period_start,
+                    $subscription->current_period_end,
+                );
+            }
 
             return $subscription;
         });
