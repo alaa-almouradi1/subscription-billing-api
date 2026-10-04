@@ -8,11 +8,15 @@ use App\Domain\Billing\SubscriptionStatus;
 use App\Models\Customer;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Services\Payments\AutoCollector;
 use Illuminate\Support\Facades\DB;
 
 class SubscriptionService
 {
-    public function __construct(private readonly InvoiceIssuer $issuer) {}
+    public function __construct(
+        private readonly InvoiceIssuer $issuer,
+        private readonly AutoCollector $collector,
+    ) {}
 
     public function subscribe(Customer $customer, Plan $plan): Subscription
     {
@@ -26,7 +30,7 @@ class SubscriptionService
 
         $now = now()->startOfSecond();
 
-        return DB::transaction(function () use ($customer, $plan, $now) {
+        $subscription = DB::transaction(function () use ($customer, $plan, $now) {
             $subscription = new Subscription([
                 'customer_id' => $customer->id,
                 'plan_id' => $plan->id,
@@ -69,6 +73,12 @@ class SubscriptionService
 
             return $subscription;
         });
+
+        // Charge after commit: the payment provider is never called while
+        // database locks are held.
+        $this->collector->collect($subscription->latestInvoice);
+
+        return $subscription->refresh();
     }
 
     public function cancel(Subscription $subscription, bool $atPeriodEnd): Subscription

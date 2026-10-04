@@ -20,14 +20,15 @@ class InvoiceApiTest extends TestCase
 
         $response = $this->postJson('/api/v1/subscriptions', ['customer_id' => $customer->id, 'plan_id' => $plan->id])
             ->assertCreated()
-            ->assertJsonPath('data.latest_invoice.status', 'open')
+            ->assertJsonPath('data.latest_invoice.status', 'paid')
             ->assertJsonPath('data.latest_invoice.amount_due.amount', 4_900);
 
         $this->getJson('/api/v1/invoices/'.$response->json('data.latest_invoice.id'))
             ->assertOk()
             ->assertJsonPath('data.number', 'INV-'.now()->format('Y').'-000001')
             ->assertJsonPath('data.lines.0.type', 'subscription')
-            ->assertJsonPath('data.lines.0.amount.amount', 4_900);
+            ->assertJsonPath('data.lines.0.amount.amount', 4_900)
+            ->assertJsonPath('data.payments.0.status', 'succeeded');
     }
 
     public function test_a_customers_invoices_are_listed_newest_first(): void

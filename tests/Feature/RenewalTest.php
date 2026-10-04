@@ -35,7 +35,7 @@ class RenewalTest extends TestCase
         $this->assertSame(1, $subscription->invoices()->count());
     }
 
-    public function test_an_invoice_is_issued_for_the_next_period(): void
+    public function test_an_invoice_is_issued_and_charged_for_the_next_period(): void
     {
         $this->travelTo('2026-01-31 10:00:00');
         $subscription = $this->subscribe();
@@ -47,7 +47,7 @@ class RenewalTest extends TestCase
         $invoice = $subscription->latestInvoice;
 
         $this->assertSame(2, $subscription->invoices()->count());
-        $this->assertSame(InvoiceStatus::Open, $invoice->status);
+        $this->assertSame(InvoiceStatus::Paid, $invoice->status);
         $this->assertSame(2_500, $invoice->amount_due);
         $this->assertSame('2026-02-28', $invoice->period_start->format('Y-m-d'));
         $this->assertSame('2026-03-31', $invoice->period_end->format('Y-m-d'));

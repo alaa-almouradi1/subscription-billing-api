@@ -22,6 +22,7 @@ Route::prefix('v1')->middleware('api.key')->group(function () {
     Route::post('subscriptions/{subscription}/change-plan', [SubscriptionController::class, 'changePlan']);
 
     Route::get('invoices/{invoice}', [InvoiceController::class, 'show']);
+    Route::post('invoices/{invoice}/pay', [InvoiceController::class, 'pay']);
     Route::post('invoices/{invoice}/void', [InvoiceController::class, 'void']);
     Route::post('invoices/{invoice}/mark-uncollectible', [InvoiceController::class, 'markUncollectible']);
 });
