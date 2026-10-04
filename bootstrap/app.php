@@ -1,6 +1,7 @@
 <?php
 
 use App\Domain\BillingException;
+use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\EnsureIdempotency;
 use Illuminate\Foundation\Application;
@@ -16,6 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(AssignRequestId::class);
+
         $middleware->alias([
             'api.key' => AuthenticateApiKey::class,
             'idempotent' => EnsureIdempotency::class,

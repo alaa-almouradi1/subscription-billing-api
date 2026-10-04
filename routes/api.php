@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\OperationsController;
 use App\Http\Controllers\PlanController;
 use App\Http\Controllers\PspWebhookController;
 use App\Http\Controllers\SubscriptionController;
@@ -34,3 +35,7 @@ Route::prefix('v1')->middleware('api.key')->group(function () {
 
 // Called by the payment provider; authenticated by signature, not API key.
 Route::post('webhooks/psp', PspWebhookController::class);
+
+// Platform endpoints (keep them off the public ingress).
+Route::get('health/ready', [OperationsController::class, 'ready']);
+Route::get('metrics', [OperationsController::class, 'metrics']);

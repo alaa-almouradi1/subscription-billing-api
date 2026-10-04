@@ -6,4 +6,5 @@ Route::get('/', fn () => response()->json([
     'service' => config('app.name'),
     'api' => url('/api/v1'),
     'health' => url('/up'),
+    'readiness' => url('/api/health/ready'),
 ]));
