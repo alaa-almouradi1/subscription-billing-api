@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Outbox\BillingEvents;
 use App\Services\Payments\AutoCollector;
 use Illuminate\Support\Facades\DB;
 
@@ -17,6 +18,7 @@ class PlanChangeService
     public function __construct(
         private readonly InvoiceIssuer $issuer,
         private readonly AutoCollector $collector,
+        private readonly BillingEvents $events,
     ) {}
 
     /**
@@ -60,6 +62,7 @@ class PlanChangeService
 
             $subscription->plan()->associate($newPlan);
             $subscription->save();
+            $this->events->subscriptionPlanChanged($subscription, $oldPlan, $newPlan);
 
             return $invoice;
         });

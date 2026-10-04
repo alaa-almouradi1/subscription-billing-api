@@ -4,10 +4,13 @@ namespace App\Services\Billing;
 
 use App\Domain\Billing\InvoiceStatus;
 use App\Models\Invoice;
+use App\Outbox\BillingEvents;
 use Illuminate\Support\Facades\DB;
 
 class InvoiceService
 {
+    public function __construct(private readonly BillingEvents $events) {}
+
     public function void(Invoice $invoice): Invoice
     {
         return $this->transition($invoice, InvoiceStatus::Void);
@@ -34,6 +37,12 @@ class InvoiceService
             }
 
             $invoice->save();
+
+            match ($next) {
+                InvoiceStatus::Void => $this->events->invoiceVoided($invoice),
+                InvoiceStatus::Uncollectible => $this->events->invoiceMarkedUncollectible($invoice),
+                default => null,
+            };
 
             return $invoice;
         });

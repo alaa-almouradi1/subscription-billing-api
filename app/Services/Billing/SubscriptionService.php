@@ -8,6 +8,7 @@ use App\Domain\Billing\SubscriptionStatus;
 use App\Models\Customer;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Outbox\BillingEvents;
 use App\Services\Payments\AutoCollector;
 use Illuminate\Support\Facades\DB;
 
@@ -16,6 +17,7 @@ class SubscriptionService
     public function __construct(
         private readonly InvoiceIssuer $issuer,
         private readonly AutoCollector $collector,
+        private readonly BillingEvents $events,
     ) {}
 
     public function subscribe(Customer $customer, Plan $plan): Subscription
@@ -61,6 +63,7 @@ class SubscriptionService
             }
 
             $subscription->save();
+            $this->events->subscriptionCreated($subscription);
 
             if ($subscription->status === SubscriptionStatus::Active) {
                 // Billing in advance: the first period is invoiced right away.
@@ -98,6 +101,10 @@ class SubscriptionService
             }
 
             $subscription->save();
+
+            if ($subscription->status === SubscriptionStatus::Canceled) {
+                $this->events->subscriptionCanceled($subscription, 'requested');
+            }
 
             return $subscription;
         });

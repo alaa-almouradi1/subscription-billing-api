@@ -46,4 +46,21 @@ return [
         'tolerance' => (int) env('BILLING_WEBHOOK_TOLERANCE', 300),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Domain events
+    |--------------------------------------------------------------------------
+    |
+    | Driver used by `php artisan outbox:relay`: "kafka", "log" or "memory".
+    |
+    */
+
+    'events' => [
+        'driver' => env('BILLING_EVENTS_DRIVER', 'log'),
+        'kafka' => [
+            'brokers' => env('KAFKA_BROKERS', 'localhost:9092'),
+            'topic' => env('BILLING_EVENTS_TOPIC', 'billing.events'),
+        ],
+    ],
+
 ];

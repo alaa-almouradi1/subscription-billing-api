@@ -10,6 +10,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Outbox\BillingEvents;
 use DateTimeInterface;
 
 /**
@@ -18,7 +19,10 @@ use DateTimeInterface;
  */
 class InvoiceIssuer
 {
-    public function __construct(private readonly InvoiceNumberGenerator $numbers) {}
+    public function __construct(
+        private readonly InvoiceNumberGenerator $numbers,
+        private readonly BillingEvents $events,
+    ) {}
 
     /**
      * Issue the invoice for one billing period of a subscription.
@@ -86,6 +90,12 @@ class InvoiceIssuer
         ]);
 
         $invoice->lines()->createMany($lines);
+
+        $this->events->invoiceIssued($invoice);
+
+        if ($settled) {
+            $this->events->invoicePaid($invoice);
+        }
 
         return $invoice;
     }
