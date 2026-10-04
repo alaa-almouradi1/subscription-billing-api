@@ -9,7 +9,7 @@ class RelayOutbox extends Command
 {
     protected $signature = 'outbox:relay
         {--once : Publish one batch and exit}
-        {--batch=100 : Messages per batch}
+        {--batch=500 : Messages per batch}
         {--sleep=1000 : Milliseconds to wait when there is nothing to publish}';
 
     protected $description = 'Publish recorded domain events to the message broker';

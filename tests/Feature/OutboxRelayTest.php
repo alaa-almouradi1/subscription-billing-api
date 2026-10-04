@@ -39,6 +39,7 @@ class OutboxRelayTest extends TestCase
 
         $this->assertSame(['first', 'second', 'third'], array_map(fn ($m) => $m['value']['type'], $this->broker->published));
         $this->assertSame(['sub_1', 'sub_1', 'sub_2'], array_column($this->broker->published, 'key'));
+        $this->assertSame([3], $this->broker->batchSizes, 'one round trip for the whole batch');
         $this->assertSame(0, OutboxMessage::query()->whereNull('published_at')->count());
     }
 
@@ -69,5 +70,19 @@ class OutboxRelayTest extends TestCase
 
         $this->assertSame(['a', 'b'], array_map(fn ($m) => $m['value']['type'], $this->broker->published));
         $this->assertNull($failed->fresh()->last_error);
+    }
+
+    public function test_large_backlogs_are_published_in_bounded_batches(): void
+    {
+        foreach (range(1, 5) as $n) {
+            $this->record("event-{$n}");
+        }
+
+        $this->artisan('outbox:relay', ['--once' => true, '--batch' => 2]);
+        $this->artisan('outbox:relay', ['--once' => true, '--batch' => 2]);
+        $this->artisan('outbox:relay', ['--once' => true, '--batch' => 2]);
+
+        $this->assertSame([2, 2, 1], $this->broker->batchSizes);
+        $this->assertSame(5, OutboxMessage::query()->whereNotNull('published_at')->where('attempts', 1)->count());
     }
 }

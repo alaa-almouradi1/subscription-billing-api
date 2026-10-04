@@ -2,7 +2,6 @@
 
 namespace App\Outbox\Publishers;
 
-use App\Models\OutboxMessage;
 use App\Outbox\EventPublisher;
 use Illuminate\Support\Facades\Log;
 
@@ -11,11 +10,13 @@ use Illuminate\Support\Facades\Log;
  */
 final class LogEventPublisher implements EventPublisher
 {
-    public function publish(OutboxMessage $message): void
+    public function publishBatch(array $messages): void
     {
-        Log::info('Event published', [
-            'key' => $message->partition_key,
-            'event' => json_decode($message->toWireFormat(), true),
-        ]);
+        foreach ($messages as $message) {
+            Log::info('Event published', [
+                'key' => $message->partition_key,
+                'event' => json_decode($message->toWireFormat(), true),
+            ]);
+        }
     }
 }

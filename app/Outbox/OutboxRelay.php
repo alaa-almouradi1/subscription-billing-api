@@ -34,35 +34,42 @@ class OutboxRelay
                 ->lock('for update skip locked')
                 ->get();
 
-            $published = 0;
-
-            foreach ($messages as $message) {
-                $message->attempts++;
-
-                try {
-                    $this->publisher->publish($message);
-                } catch (Throwable $e) {
-                    $message->last_error = mb_substr($e->getMessage(), 0, 1000);
-                    $message->save();
-
-                    Log::error('Outbox publish failed; will retry', [
-                        'event_id' => $message->event_id,
-                        'attempts' => $message->attempts,
-                        'error' => $e->getMessage(),
-                    ]);
-
-                    // Stop here: publishing later messages first would break
-                    // the per-subscription ordering consumers rely on.
-                    break;
-                }
-
-                $message->published_at = now();
-                $message->last_error = null;
-                $message->save();
-                $published++;
+            if ($messages->isEmpty()) {
+                return 0;
             }
 
-            return $published;
+            $ids = $messages->modelKeys();
+
+            try {
+                // One produce-and-flush round trip for the whole batch.
+                $this->publisher->publishBatch($messages->all());
+            } catch (Throwable $e) {
+                // Nothing is marked as published: the same batch is retried in
+                // the same order, so per-subscription ordering is preserved.
+                // Messages the broker did accept are sent again (consumers
+                // deduplicate by event ID).
+                OutboxMessage::query()->whereKey($ids)->update([
+                    'attempts' => DB::raw('attempts + 1'),
+                    'last_error' => mb_substr($e->getMessage(), 0, 1000),
+                ]);
+
+                Log::error('Outbox publish failed; will retry', [
+                    'first_event_id' => $messages->first()->event_id,
+                    'batch_size' => count($ids),
+                    'error' => $e->getMessage(),
+                ]);
+
+                return 0;
+            }
+
+            // A single UPDATE instead of one per message.
+            OutboxMessage::query()->whereKey($ids)->update([
+                'published_at' => now(),
+                'attempts' => DB::raw('attempts + 1'),
+                'last_error' => null,
+            ]);
+
+            return count($ids);
         });
     }
 

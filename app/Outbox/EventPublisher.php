@@ -7,8 +7,10 @@ use App\Models\OutboxMessage;
 interface EventPublisher
 {
     /**
-     * Publish one message. Must throw if the broker did not acknowledge it,
-     * so the relay keeps it for a later retry.
+     * Publish messages in the given order. All-or-nothing: must throw unless
+     * the broker acknowledged every message, so the relay retries the batch.
+     *
+     * @param  list<OutboxMessage>  $messages
      */
-    public function publish(OutboxMessage $message): void;
+    public function publishBatch(array $messages): void;
 }
