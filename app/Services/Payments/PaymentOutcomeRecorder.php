@@ -9,6 +9,7 @@ use App\Domain\Payments\PaymentStatus;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Subscription;
+use App\Outbox\BillingEvents;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -22,6 +23,8 @@ use Illuminate\Support\Facades\Log;
  */
 class PaymentOutcomeRecorder
 {
+    public function __construct(private readonly BillingEvents $events) {}
+
     public function record(Payment $payment, ChargeResult $result): Payment
     {
         return match ($result->status) {
@@ -47,6 +50,7 @@ class PaymentOutcomeRecorder
             ])->save();
 
             $invoice = Invoice::query()->lockForUpdate()->findOrFail($payment->invoice_id);
+            $this->events->paymentSucceeded($payment, $invoice);
 
             if (! $invoice->status->isPayable()) {
                 // E.g. the invoice was voided while the payment was pending.
@@ -63,12 +67,14 @@ class PaymentOutcomeRecorder
             $invoice->transitionTo(InvoiceStatus::Paid);
             $invoice->paid_at = now();
             $invoice->save();
+            $this->events->invoicePaid($invoice);
 
             $subscription = $this->lockSubscription($invoice);
 
             if ($subscription?->status === SubscriptionStatus::PastDue) {
                 $subscription->transitionTo(SubscriptionStatus::Active);
                 $subscription->save();
+                $this->events->subscriptionReactivated($subscription);
             }
 
             return $payment;
@@ -93,11 +99,18 @@ class PaymentOutcomeRecorder
             ])->save();
 
             $invoice = Invoice::query()->findOrFail($payment->invoice_id);
+            $failedAttempts = Payment::query()
+                ->where('invoice_id', $invoice->id)
+                ->where('status', PaymentStatus::Failed)
+                ->count();
+            $this->events->paymentFailed($payment, $invoice, $failedAttempts);
+
             $subscription = $this->lockSubscription($invoice);
 
             if (in_array($subscription?->status, [SubscriptionStatus::Active, SubscriptionStatus::Trialing], true)) {
                 $subscription->transitionTo(SubscriptionStatus::PastDue);
                 $subscription->save();
+                $this->events->subscriptionPastDue($subscription);
             }
 
             return $payment;

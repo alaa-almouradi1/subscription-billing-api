@@ -6,13 +6,17 @@ use App\Domain\Billing\BillingCalendar;
 use App\Domain\Billing\SubscriptionStatus;
 use App\Models\Invoice;
 use App\Models\Subscription;
+use App\Outbox\BillingEvents;
 use DateTimeInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class RenewalService
 {
-    public function __construct(private readonly InvoiceIssuer $issuer) {}
+    public function __construct(
+        private readonly InvoiceIssuer $issuer,
+        private readonly BillingEvents $events,
+    ) {}
 
     /**
      * IDs of subscriptions whose current period has ended.
@@ -52,6 +56,7 @@ class RenewalService
                 $subscription->transitionTo(SubscriptionStatus::Canceled);
                 $subscription->canceled_at = $subscription->current_period_end;
                 $subscription->save();
+                $this->events->subscriptionCanceled($subscription, 'period_end');
 
                 return null;
             }
