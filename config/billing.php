@@ -1,7 +1,5 @@
 <?php
 
-$list = fn (?string $value): array => array_values(array_filter(array_map('trim', explode(',', (string) $value))));
-
 return [
 
     /*
@@ -9,13 +7,20 @@ return [
     | API authentication
     |--------------------------------------------------------------------------
     |
-    | Service-to-service clients authenticate with an X-Api-Key header.
-    | Several keys may be configured at once so they can be rotated without
-    | downtime.
+    | Each calling service has a name, scopes, and the SHA-256 hash of its
+    | key (never the key itself). Generate both with:
+    |
+    |   php artisan billing:client dunning-service --scope=billing.read ...
+    |
+    | Rotate a key by adding a second entry with the same name, deploying the
+    | new key to the client, then removing the old entry.
+    |
+    | Scopes: billing.read, customers.write, plans.write, subscriptions.write,
+    | invoices.write, payments.write, ops.read, or "*" for everything.
     |
     */
 
-    'api_keys' => $list(env('BILLING_API_KEYS')),
+    'api_clients' => json_decode((string) env('BILLING_API_CLIENTS', '[]'), true) ?: [],
 
     /*
     |--------------------------------------------------------------------------

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Auth\ApiClient;
 use App\Models\IdempotencyKey;
 use Closure;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -42,7 +43,9 @@ class EnsureIdempotency
             return $this->error(400, 'idempotency_key_invalid', 'The Idempotency-Key header must be at most 255 characters.');
         }
 
-        $scope = hash('sha256', (string) $request->header('X-Api-Key'));
+        // Keys are scoped per calling client: two services may pick the same key.
+        $client = $request->attributes->get('api_client');
+        $scope = hash('sha256', $client instanceof ApiClient ? $client->name : 'anonymous');
         $fingerprint = hash('sha256', $request->method().' '.$request->path().' '.$request->getContent());
 
         try {

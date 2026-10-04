@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Auth\ApiClientRegistry;
 use App\Domain\Payments\PaymentGateway;
 use App\Infrastructure\Payments\FakePaymentGateway;
 use App\Outbox\EventPublisher;
@@ -20,6 +21,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->singleton(ApiClientRegistry::class, fn () => new ApiClientRegistry(
+            array_values(array_filter((array) config('billing.api_clients'), 'is_array')),
+        ));
+
         $this->app->singleton(PaymentGateway::class, fn () => match (config('billing.payments.gateway')) {
             'fake' => new FakePaymentGateway,
             default => throw new InvalidArgumentException('Unsupported payment gateway ['.config('billing.payments.gateway').'].'),

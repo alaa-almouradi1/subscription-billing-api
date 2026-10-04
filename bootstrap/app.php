@@ -4,6 +4,7 @@ use App\Domain\BillingException;
 use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\EnsureIdempotency;
+use App\Http\Middleware\RequireScope;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'api.key' => AuthenticateApiKey::class,
+            'api.scope' => RequireScope::class,
             'idempotent' => EnsureIdempotency::class,
         ]);
     })
