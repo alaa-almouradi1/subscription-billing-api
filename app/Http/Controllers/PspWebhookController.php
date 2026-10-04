@@ -30,7 +30,12 @@ class PspWebhookController extends Controller
             'id' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', 'max:64'],
             'data' => ['required', 'array'],
-            'data.payment_id' => ['required', 'string'],
+            'data.payment_id' => ['required', 'string', 'max:255'],
+            // validate() returns only keys that have a rule, so every field
+            // the processor reads must be listed here or it is dropped.
+            'data.psp_reference' => ['nullable', 'string', 'max:255'],
+            'data.failure_code' => ['nullable', 'string', 'max:64'],
+            'data.failure_message' => ['nullable', 'string', 'max:255'],
         ])->validate();
 
         return response()->json(['status' => $processor->process($event)]);
