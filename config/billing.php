@@ -24,6 +24,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Rate limits (requests per minute)
+    |--------------------------------------------------------------------------
+    |
+    | Counters live in the cache store, so every API instance shares them
+    | (use Redis in production). Payment attempts are also limited per
+    | invoice, which bounds retry storms and card-testing abuse.
+    |
+    */
+
+    'rate_limits' => [
+        'per_client' => (int) env('BILLING_RATE_LIMIT_PER_CLIENT', 600),
+        'payments_per_invoice' => (int) env('BILLING_RATE_LIMIT_PAYMENTS_PER_INVOICE', 5),
+        'webhooks_per_ip' => (int) env('BILLING_RATE_LIMIT_WEBHOOKS_PER_IP', 1200),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Payments
     |--------------------------------------------------------------------------
     |

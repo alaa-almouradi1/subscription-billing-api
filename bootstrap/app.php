@@ -5,6 +5,7 @@ use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\AuthenticateApiKey;
 use App\Http\Middleware\EnsureIdempotency;
 use App\Http\Middleware\RequireScope;
+use App\Http\Middleware\SetSecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -19,6 +20,14 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(AssignRequestId::class);
+        $middleware->append(SetSecurityHeaders::class);
+
+        // Behind a load balancer the client IP (used for rate limits and logs)
+        // comes from X-Forwarded-For, which must only be trusted from the proxy.
+        $proxies = env('TRUSTED_PROXIES');
+        if (is_string($proxies) && $proxies !== '') {
+            $middleware->trustProxies(at: $proxies === '*' ? '*' : array_map('trim', explode(',', $proxies)));
+        }
 
         $middleware->alias([
             'api.key' => AuthenticateApiKey::class,

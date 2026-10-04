@@ -8,7 +8,7 @@ use App\Http\Controllers\PspWebhookController;
 use App\Http\Controllers\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('v1')->middleware('api.key')->group(function () {
+Route::prefix('v1')->middleware(['api.key', 'throttle:api'])->group(function () {
     Route::middleware('api.scope:billing.read')->group(function () {
         Route::get('customers/{customer}', [CustomerController::class, 'show']);
         Route::get('customers/{customer}/invoices', [InvoiceController::class, 'index']);
@@ -41,11 +41,11 @@ Route::prefix('v1')->middleware('api.key')->group(function () {
 
     // Moving money: the header is mandatory.
     Route::post('invoices/{invoice}/pay', [InvoiceController::class, 'pay'])
-        ->middleware(['api.scope:payments.write', 'idempotent:required']);
+        ->middleware(['api.scope:payments.write', 'throttle:payments', 'idempotent:required']);
 });
 
 // Called by the payment provider; authenticated by signature, not API key.
-Route::post('webhooks/psp', PspWebhookController::class);
+Route::post('webhooks/psp', PspWebhookController::class)->middleware('throttle:webhooks');
 
 // Readiness for the orchestrator: status only, no business data.
 Route::get('health/ready', [OperationsController::class, 'ready']);

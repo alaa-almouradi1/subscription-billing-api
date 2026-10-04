@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Auth\ApiClientRegistry;
 use Closure;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Context;
 use Symfony\Component\HttpFoundation\Response;
@@ -12,8 +13,12 @@ use Symfony\Component\HttpFoundation\Response;
  * Authenticates service clients by API key, sent either as `X-Api-Key` or as
  * `Authorization: Bearer <key>` (which is what Prometheus and most HTTP
  * tooling support out of the box).
+ *
+ * Implementing AuthenticatesRequests places this middleware before
+ * ThrottleRequests in Laravel's middleware priority list, so rate limits
+ * are counted per authenticated client rather than per IP address.
  */
-class AuthenticateApiKey
+class AuthenticateApiKey implements AuthenticatesRequests
 {
     public function __construct(private readonly ApiClientRegistry $clients) {}
 

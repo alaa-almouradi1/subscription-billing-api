@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Auth\ApiClient;
 use App\Auth\ApiClientRegistry;
 use App\Domain\Payments\PaymentGateway;
 use App\Infrastructure\Payments\FakePaymentGateway;
@@ -10,7 +11,11 @@ use App\Outbox\Publishers\InMemoryEventPublisher;
 use App\Outbox\Publishers\KafkaEventPublisher;
 use App\Outbox\Publishers\LogEventPublisher;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use InvalidArgumentException;
 
@@ -49,5 +54,35 @@ class AppServiceProvider extends ServiceProvider
         // Mutable dates are a classic source of billing bugs
         // ($end = $start->addMonth() silently changes $start too).
         Date::use(CarbonImmutable::class);
+
+        $this->configureRateLimits();
+    }
+
+    private function configureRateLimits(): void
+    {
+        $tooMany = fn (Request $request, array $headers) => response()->json([
+            'error' => ['code' => 'rate_limited', 'message' => 'Too many requests; retry after the Retry-After delay.'],
+        ], 429, $headers);
+
+        RateLimiter::for('api', function (Request $request) use ($tooMany) {
+            $client = $request->attributes->get('api_client');
+
+            return Limit::perMinute((int) config('billing.rate_limits.per_client'))
+                ->by('client:'.($client instanceof ApiClient ? $client->name : $request->ip()))
+                ->response($tooMany);
+        });
+
+        RateLimiter::for('payments', function (Request $request) use ($tooMany) {
+            $invoice = $request->route('invoice');
+            $invoiceId = $invoice instanceof Model ? (string) $invoice->getKey() : (string) $invoice;
+
+            return Limit::perMinute((int) config('billing.rate_limits.payments_per_invoice'))
+                ->by('pay:'.$invoiceId)
+                ->response($tooMany);
+        });
+
+        RateLimiter::for('webhooks', fn (Request $request) => Limit::perMinute((int) config('billing.rate_limits.webhooks_per_ip'))
+            ->by('webhook:'.$request->ip())
+            ->response($tooMany));
     }
 }
