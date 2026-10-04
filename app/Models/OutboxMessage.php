@@ -3,11 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
 
 #[Fillable(['event_id', 'event_type', 'partition_key', 'payload', 'occurred_at'])]
 class OutboxMessage extends Model
 {
+    use MassPrunable;
+
     public const SCHEMA_VERSION = 1;
 
     public $timestamps = false;
@@ -15,6 +19,19 @@ class OutboxMessage extends Model
     protected $attributes = [
         'attempts' => 0,
     ];
+
+    /**
+     * Published messages are only kept for troubleshooting; unpublished ones
+     * are never pruned.
+     *
+     * @return Builder<static>
+     */
+    public function prunable(): Builder
+    {
+        return static::query()
+            ->whereNotNull('published_at')
+            ->where('published_at', '<=', now()->subDays((int) config('billing.retention.outbox_days')));
+    }
 
     /**
      * The message as consumers see it (the event contract, see docs/events.md).
