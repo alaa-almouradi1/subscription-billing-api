@@ -3,6 +3,7 @@
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PlanController;
+use App\Http\Controllers\PspWebhookController;
 use App\Http\Controllers\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
@@ -30,3 +31,6 @@ Route::prefix('v1')->middleware('api.key')->group(function () {
     // Moving money: the header is mandatory.
     Route::post('invoices/{invoice}/pay', [InvoiceController::class, 'pay'])->middleware('idempotent:required');
 });
+
+// Called by the payment provider; authenticated by signature, not API key.
+Route::post('webhooks/psp', PspWebhookController::class);
