@@ -70,6 +70,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Retention (days)
+    |--------------------------------------------------------------------------
+    |
+    | `php artisan model:prune` (scheduled daily) deletes old rows in chunks so
+    | these tables stay small. Webhook events must outlive the provider's
+    | redelivery window, published outbox messages are only kept for
+    | troubleshooting, and idempotency keys expire after 24 hours.
+    |
+    */
+
+    'retention' => [
+        'webhook_event_days' => (int) env('BILLING_RETENTION_WEBHOOK_EVENT_DAYS', 30),
+        'outbox_days' => (int) env('BILLING_RETENTION_OUTBOX_DAYS', 7),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Domain events
     |--------------------------------------------------------------------------
     |

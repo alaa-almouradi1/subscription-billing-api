@@ -7,5 +7,6 @@ use Illuminate\Support\Facades\Schedule;
 // (needs a shared cache store such as Redis); the jobs run on queue workers.
 Schedule::command('billing:renew')->everyMinute()->withoutOverlapping()->onOneServer();
 
-// Deletes expired idempotency keys (see App\Models\IdempotencyKey::prunable).
-Schedule::command('model:prune')->daily();
+// Deletes expired idempotency keys, old webhook events and published outbox
+// messages (see the prunable() methods and config/billing.php "retention").
+Schedule::command('model:prune')->daily()->onOneServer();

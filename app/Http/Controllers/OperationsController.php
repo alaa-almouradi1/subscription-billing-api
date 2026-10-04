@@ -8,6 +8,7 @@ use App\Models\OutboxMessage;
 use App\Models\Subscription;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -22,6 +23,8 @@ class OperationsController extends Controller
 {
     /** Unpublished events older than this mean the relay is stuck. */
     private const MAX_OUTBOX_LAG_SECONDS = 300;
+
+    private const AGGREGATE_TTL_SECONDS = 60;
 
     public function ready(): JsonResponse
     {
@@ -57,22 +60,30 @@ class OperationsController extends Controller
             '# TYPE billing_subscriptions gauge',
         ];
 
-        $byStatus = Subscription::query()->toBase()->select('status', DB::raw('count(*) as total'))->groupBy('status')->pluck('total', 'status');
+        // Aggregations over whole tables are cached briefly, so frequent
+        // scrapes (and several Prometheus replicas) cost one query per minute.
+        $aggregates = Cache::remember('billing:metrics:aggregates', self::AGGREGATE_TTL_SECONDS, fn () => [
+            'subscriptions' => Subscription::query()->toBase()
+                ->select('status', DB::raw('count(*) as total'))
+                ->groupBy('status')
+                ->pluck('total', 'status')
+                ->all(),
+            'open_invoices' => Invoice::query()->toBase()
+                ->where('status', InvoiceStatus::Open->value)
+                ->select('currency', DB::raw('sum(amount_due) as total'))
+                ->groupBy('currency')
+                ->pluck('total', 'currency')
+                ->all(),
+        ]);
 
-        foreach ($byStatus as $status => $total) {
+        foreach ($aggregates['subscriptions'] as $status => $total) {
             $lines[] = "billing_subscriptions{status=\"{$status}\"} {$total}";
         }
 
         $lines[] = '# HELP billing_open_invoices_amount Outstanding amount on open invoices, in minor units.';
         $lines[] = '# TYPE billing_open_invoices_amount gauge';
 
-        $open = Invoice::query()->toBase()
-            ->where('status', InvoiceStatus::Open->value)
-            ->select('currency', DB::raw('sum(amount_due) as total'))
-            ->groupBy('currency')
-            ->pluck('total', 'currency');
-
-        foreach ($open as $currency => $total) {
+        foreach ($aggregates['open_invoices'] as $currency => $total) {
             $lines[] = "billing_open_invoices_amount{currency=\"{$currency}\"} {$total}";
         }
 

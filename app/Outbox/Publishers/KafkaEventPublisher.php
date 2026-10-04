@@ -2,7 +2,6 @@
 
 namespace App\Outbox\Publishers;
 
-use App\Models\OutboxMessage;
 use App\Outbox\EventPublisher;
 use RdKafka\Conf;
 use RdKafka\Message;
@@ -13,8 +12,9 @@ use RuntimeException;
 /**
  * Publishes to Kafka through ext-rdkafka (librdkafka).
  *
- * The producer is idempotent with acks=all, and every message is flushed
- * and confirmed before the relay marks it as published.
+ * The producer is idempotent with acks=all (no duplicates or reordering
+ * from internal retries), and a batch is only reported as published once
+ * every message in it has been acknowledged.
  */
 final class KafkaEventPublisher implements EventPublisher
 {
@@ -31,21 +31,27 @@ final class KafkaEventPublisher implements EventPublisher
         private readonly int $flushTimeoutMs = 10_000,
     ) {}
 
-    public function publish(OutboxMessage $message): void
+    public function publishBatch(array $messages): void
     {
         $this->deliveryErrors = [];
 
-        $this->topic()->producev(
-            RD_KAFKA_PARTITION_UA,
-            0,
-            $message->toWireFormat(),
-            $message->partition_key,
-            [
-                'event-id' => $message->event_id,
-                'event-type' => $message->event_type,
-            ],
-        );
+        // Queue the whole batch locally; librdkafka groups it into a few
+        // compressed requests per partition.
+        foreach ($messages as $message) {
+            $this->topic()->producev(
+                RD_KAFKA_PARTITION_UA,
+                0,
+                $message->toWireFormat(),
+                $message->partition_key,
+                [
+                    'event-id' => $message->event_id,
+                    'event-type' => $message->event_type,
+                ],
+            );
+            $this->producer()->poll(0);
+        }
 
+        // One wait for all acknowledgements (and delivery reports).
         $result = $this->producer()->flush($this->flushTimeoutMs);
 
         if ($result !== RD_KAFKA_RESP_ERR_NO_ERROR) {
@@ -71,6 +77,8 @@ final class KafkaEventPublisher implements EventPublisher
         $conf->set('bootstrap.servers', $this->brokers);
         $conf->set('enable.idempotence', 'true');
         $conf->set('acks', 'all');
+        $conf->set('compression.type', 'lz4');
+        $conf->set('linger.ms', '5');
         $conf->setDrMsgCb(function ($kafka, Message $message): void {
             if ($message->err !== RD_KAFKA_RESP_ERR_NO_ERROR) {
                 $this->deliveryErrors[] = $message->errstr();

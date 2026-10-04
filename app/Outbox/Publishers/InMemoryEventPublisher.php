@@ -2,7 +2,6 @@
 
 namespace App\Outbox\Publishers;
 
-use App\Models\OutboxMessage;
 use App\Outbox\EventPublisher;
 use RuntimeException;
 
@@ -22,7 +21,10 @@ final class InMemoryEventPublisher implements EventPublisher
         $this->failuresRemaining = $times;
     }
 
-    public function publish(OutboxMessage $message): void
+    /** @var list<int> */
+    public array $batchSizes = [];
+
+    public function publishBatch(array $messages): void
     {
         if ($this->failuresRemaining > 0) {
             $this->failuresRemaining--;
@@ -30,9 +32,13 @@ final class InMemoryEventPublisher implements EventPublisher
             throw new RuntimeException('Broker unavailable');
         }
 
-        $this->published[] = [
-            'key' => $message->partition_key,
-            'value' => json_decode($message->toWireFormat(), true),
-        ];
+        $this->batchSizes[] = count($messages);
+
+        foreach ($messages as $message) {
+            $this->published[] = [
+                'key' => $message->partition_key,
+                'value' => json_decode($message->toWireFormat(), true),
+            ];
+        }
     }
 }

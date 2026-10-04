@@ -10,16 +10,24 @@ use App\Models\Invoice;
 use App\Services\Billing\InvoiceService;
 use App\Services\Payments\PaymentService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class InvoiceController extends Controller
 {
     public function __construct(private readonly InvoiceService $invoices) {}
 
-    public function index(Customer $customer): AnonymousResourceCollection
+    /**
+     * Newest first, with cursor pagination: each page is an index range scan
+     * (customer_id, issued_at) instead of an OFFSET that gets slower the
+     * deeper a client pages. Follow meta.next_cursor for the next page.
+     */
+    public function index(Request $request, Customer $customer): AnonymousResourceCollection
     {
+        $perPage = max(1, min(100, $request->integer('per_page', 25)));
+
         return InvoiceResource::collection(
-            $customer->invoices()->latest('issued_at')->latest('number')->paginate(25),
+            $customer->invoices()->orderByDesc('issued_at')->orderByDesc('id')->cursorPaginate($perPage),
         );
     }
 

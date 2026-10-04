@@ -44,6 +44,26 @@ class InvoiceApiTest extends TestCase
             ->assertJsonPath('data.0.number', 'INV-2026-000002');
     }
 
+    public function test_invoice_lists_use_cursor_pagination(): void
+    {
+        $customer = Customer::factory()->create();
+        foreach (['2026-01-01', '2026-02-01', '2026-03-01'] as $n => $date) {
+            Invoice::factory()->for($customer)->create(['number' => "INV-2026-00000{$n}", 'issued_at' => $date]);
+        }
+
+        $first = $this->getJson("/api/v1/customers/{$customer->id}/invoices?per_page=2")
+            ->assertOk()
+            ->assertJsonCount(2, 'data');
+        $cursor = $first->json('meta.next_cursor');
+        $this->assertNotNull($cursor);
+
+        $this->getJson("/api/v1/customers/{$customer->id}/invoices?per_page=2&cursor={$cursor}")
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.issued_at', '2026-01-01T00:00:00+00:00')
+            ->assertJsonPath('meta.next_cursor', null);
+    }
+
     public function test_an_open_invoice_can_be_voided(): void
     {
         $invoice = Invoice::factory()->create();
