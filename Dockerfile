@@ -1,16 +1,23 @@
-# One image, three roles (see docker-compose.yml):
-#   api       Apache + mod_php serving public/
-#   relay     php artisan outbox:relay
-#   scheduler php artisan schedule:work
+# One image, four roles (see docker-compose.yml):
+#   api        Apache + mod_php serving public/
+#   worker     php artisan queue:work      (renewals and other queued jobs)
+#   relay      php artisan outbox:relay    (domain events to Kafka)
+#   scheduler  php artisan schedule:work   (queues renewals, pruning, reconciliation)
 FROM php:8.3-apache
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git unzip libzip-dev librdkafka-dev \
-    && docker-php-ext-install pdo_mysql pcntl zip \
-    && pecl install rdkafka \
-    && docker-php-ext-enable rdkafka \
+    && docker-php-ext-install pdo_mysql pcntl zip opcache \
+    && yes '' | pecl install rdkafka redis \
+    && docker-php-ext-enable rdkafka redis \
     && a2enmod rewrite \
     && rm -rf /var/lib/apt/lists/* /tmp/pear
+
+# Production PHP and Apache settings.
+RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+COPY docker/php.ini "$PHP_INI_DIR/conf.d/zz-billing.ini"
+COPY docker/apache.conf /etc/apache2/conf-available/zz-billing.conf
+RUN a2enconf zz-billing
 
 # Serve Laravel's public/ directory.
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
@@ -29,8 +36,14 @@ COPY . .
 RUN composer dump-autoload --optimize --no-dev \
     && chown -R www-data:www-data storage bootstrap/cache
 
+COPY docker/entrypoint.sh /usr/local/bin/billing-entrypoint
+ENTRYPOINT ["billing-entrypoint"]
+CMD ["apache2-foreground"]
+
 # Structured JSON logs on stderr, collected by the container runtime.
-ENV LOG_CHANNEL=stderr \
+ENV APP_ENV=production \
+    APP_DEBUG=false \
+    LOG_CHANNEL=stderr \
     LOG_STDERR_FORMATTER="Monolog\\Formatter\\JsonFormatter"
 
 EXPOSE 80
