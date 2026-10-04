@@ -19,6 +19,7 @@ Route::prefix('v1')->middleware('api.key')->group(function () {
     Route::post('subscriptions', [SubscriptionController::class, 'store']);
     Route::get('subscriptions/{subscription}', [SubscriptionController::class, 'show']);
     Route::post('subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel']);
+    Route::post('subscriptions/{subscription}/change-plan', [SubscriptionController::class, 'changePlan']);
 
     Route::get('invoices/{invoice}', [InvoiceController::class, 'show']);
     Route::post('invoices/{invoice}/void', [InvoiceController::class, 'void']);
