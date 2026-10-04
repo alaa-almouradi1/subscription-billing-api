@@ -13,3 +13,4 @@ database/*.sqlite
 .phpunit.cache
 .idea
 .vscode
+bootstrap/cache/*.php

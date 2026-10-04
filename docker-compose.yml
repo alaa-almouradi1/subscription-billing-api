@@ -1,4 +1,6 @@
-# Local stack: MariaDB + single-node Kafka (KRaft) + the billing API and its workers.
+# Local stack: MariaDB, Redis, single-node Kafka (KRaft), the billing API and its workers.
+# Production-like settings (APP_ENV=production, cached config, Redis-backed queues,
+# cache and rate limits); only the credentials below are demo values.
 #
 #   docker compose up --build
 #   curl http://localhost:8080/api/health/ready
@@ -9,7 +11,8 @@ x-app: &app
   build: .
   image: subscription-billing-api:local
   environment: &app-env
-    APP_ENV: local
+    APP_ENV: production
+    APP_DEBUG: "false"
     APP_KEY: ${APP_KEY:?Set APP_KEY in .env (php artisan key:generate)}
     APP_URL: http://localhost:8080
     DB_CONNECTION: mariadb
@@ -18,9 +21,12 @@ x-app: &app
     DB_DATABASE: billing
     DB_USERNAME: billing
     DB_PASSWORD: billing
-    CACHE_STORE: database
+    # Shared by every instance: rate-limit counters, scheduler locks, queues.
+    CACHE_STORE: redis
+    QUEUE_CONNECTION: redis
+    REDIS_CLIENT: phpredis
+    REDIS_HOST: redis
     SESSION_DRIVER: array
-    QUEUE_CONNECTION: sync
     # Local-only demo keys (see .env.example): local-dev-key has every scope,
     # dunning-local-key only what the dunning service needs, prometheus-local-key ops.read.
     BILLING_API_CLIENTS: >-
@@ -34,8 +40,18 @@ x-app: &app
   depends_on:
     migrate:
       condition: service_completed_successfully
+    redis:
+      condition: service_healthy
 
 services:
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   mariadb:
     image: mariadb:11.4
     environment:
@@ -89,6 +105,7 @@ services:
   migrate:
     build: .
     image: subscription-billing-api:local
+    user: www-data
     environment: *app-env
     depends_on:
       mariadb:
@@ -100,17 +117,28 @@ services:
     ports:
       - "8080:80"
 
+  # Scale with: docker compose up --scale worker=4
+  worker:
+    <<: *app
+    user: www-data
+    command: ["php", "artisan", "queue:work", "--queue=billing,default", "--sleep=1", "--max-time=3600"]
+
+  # Keep a single relay: it publishes in commit order (see ADR 0004).
   relay:
     <<: *app
+    user: www-data
     command: ["php", "artisan", "outbox:relay"]
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
       kafka-init:
         condition: service_completed_successfully
 
   scheduler:
     <<: *app
+    user: www-data
     command: ["php", "artisan", "schedule:work"]
 
 networks:

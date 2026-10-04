@@ -23,7 +23,7 @@ jobs:
           sed -i "s|^APP_KEY=.*|APP_KEY=base64:$(openssl rand -base64 32)|" .env
 
       - name: Start the stack
-        run: docker compose up --build --detach api relay scheduler
+        run: docker compose up --build --detach api worker relay scheduler
 
       - name: Run smoke test
         run: bash scripts/smoke-test.sh
