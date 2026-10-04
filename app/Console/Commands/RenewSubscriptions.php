@@ -2,52 +2,36 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\RenewSubscription;
 use App\Services\Billing\RenewalService;
-use App\Services\Payments\AutoCollector;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class RenewSubscriptions extends Command
 {
-    protected $signature = 'billing:renew {--limit=500 : Maximum number of subscriptions to process}';
+    protected $signature = 'billing:renew';
 
-    protected $description = 'Issue invoices for subscriptions whose billing period has ended';
+    protected $description = 'Queue a renewal job for every subscription whose billing period has ended';
 
-    /**
-     * Upper bound on periods caught up per subscription in one run, so a
-     * misconfigured anchor can never produce an unbounded invoice loop.
-     */
-    private const MAX_PERIODS_PER_RUN = 24;
-
-    public function handle(RenewalService $renewals, AutoCollector $collector): int
+    public function handle(RenewalService $renewals): int
     {
-        $now = now();
-        $issued = 0;
+        $queued = 0;
         $failed = 0;
 
-        foreach ($renewals->dueSubscriptionIds($now, (int) $this->option('limit')) as $id) {
+        $renewals->eachDueSubscriptionId(now(), function (string $id) use (&$queued, &$failed) {
             try {
-                // A subscription that was down for several periods is caught up
-                // one period (and one invoice) at a time.
-                for ($i = 0; $i < self::MAX_PERIODS_PER_RUN; $i++) {
-                    $invoice = $renewals->renew($id, $now);
-
-                    if ($invoice === null) {
-                        break;
-                    }
-
-                    $issued++;
-                    $collector->collect($invoice);
-                }
+                RenewSubscription::dispatch($id);
+                $queued++;
             } catch (Throwable $e) {
-                // One broken subscription must not block everyone else's billing.
+                // Only reachable with the sync queue (tests, local dev): one
+                // broken subscription must not stop everyone else's billing.
                 $failed++;
                 Log::error('Subscription renewal failed', ['subscription_id' => $id, 'exception' => $e]);
             }
-        }
+        });
 
-        $this->info("Issued {$issued} invoice(s), {$failed} failure(s).");
+        $this->info("Queued {$queued} renewal(s), {$failed} failure(s).");
 
         return $failed === 0 ? self::SUCCESS : self::FAILURE;
     }
