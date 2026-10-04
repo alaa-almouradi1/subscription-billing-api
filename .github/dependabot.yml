@@ -19,3 +19,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # The php version is a deliberate upgrade, not a bot bump: it must
+      # move together with the version CI tests on (.github/workflows/ci.yml and composer.json's platform pin).
+      - dependency-name: php
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
