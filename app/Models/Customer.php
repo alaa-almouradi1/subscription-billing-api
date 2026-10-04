@@ -28,6 +28,14 @@ class Customer extends Model
         return $this->hasMany(Subscription::class);
     }
 
+    /**
+     * @return HasMany<Invoice, $this>
+     */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
     public function creditBalance(string $currency): Money
     {
         if ($this->credit_currency !== null && $this->credit_currency !== $currency) {

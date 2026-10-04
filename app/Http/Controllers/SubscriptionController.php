@@ -22,14 +22,14 @@ class SubscriptionController extends Controller
             Plan::findOrFail($request->validated('plan_id')),
         );
 
-        return SubscriptionResource::make($subscription->load('plan'))
+        return SubscriptionResource::make($subscription->load(['plan', 'latestInvoice']))
             ->response()
             ->setStatusCode(201);
     }
 
     public function show(Subscription $subscription): SubscriptionResource
     {
-        return SubscriptionResource::make($subscription->load('plan'));
+        return SubscriptionResource::make($subscription->load(['plan', 'latestInvoice']));
     }
 
     public function cancel(CancelSubscriptionRequest $request, Subscription $subscription): SubscriptionResource
@@ -39,6 +39,6 @@ class SubscriptionController extends Controller
             atPeriodEnd: $request->boolean('at_period_end', true),
         );
 
-        return SubscriptionResource::make($subscription->load('plan'));
+        return SubscriptionResource::make($subscription->load(['plan', 'latestInvoice']));
     }
 }
