@@ -3,7 +3,7 @@
 #   worker     php artisan queue:work      (renewals and other queued jobs)
 #   relay      php artisan outbox:relay    (domain events to Kafka)
 #   scheduler  php artisan schedule:work   (queues renewals, pruning, reconciliation)
-FROM php:8.3-apache
+FROM php:8.5-apache
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git unzip libzip-dev librdkafka-dev \
