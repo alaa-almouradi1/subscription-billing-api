@@ -13,11 +13,15 @@ Kafka not) or a phantom event is published (Kafka first, DB rolled back).
 
 - Services record events with `Outbox::record()` **inside** the transaction
   that changes state. The call throws if no transaction is open.
-- `php artisan outbox:relay` reads unpublished rows in `id` order, publishes
-  each to Kafka (idempotent producer, `acks=all`, flush per message), and
-  marks it published.
-- On a broker error the relay stops the batch rather than skipping ahead,
-  preserving per-key order, and retries on the next loop.
+- `php artisan outbox:relay` reads up to 500 unpublished rows in `id` order,
+  produces them all (idempotent producer, `acks=all`, lz4 compression), waits
+  once for every acknowledgement, and marks the whole batch published with a
+  single UPDATE.
+- If any message in a batch is not acknowledged, nothing is marked: the same
+  batch is retried in the same order on the next loop, preserving per-key
+  order. Messages the broker had already accepted are sent again, which
+  at-least-once delivery allows.
+- Published rows are pruned after 7 days (`model:prune`).
 - `SELECT ... FOR UPDATE SKIP LOCKED` keeps an accidentally scaled-out relay
   from publishing the same rows concurrently.
 

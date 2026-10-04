@@ -43,8 +43,11 @@ can safely retry them.
 
 ## Consequences
 
-- A stuck `processing` payment blocks new attempts on that invoice until the
-  webhook arrives. That is the safe failure mode. A reconciliation job that
-  polls the provider for old `processing` payments would be the next step.
+- A stuck `processing` payment blocks new attempts on that invoice until its
+  outcome is known. That is the safe failure mode. `payments:reconcile` runs
+  every five minutes and asks the provider about payments processing for
+  more than 15 minutes. If the provider has no record after an hour, the
+  request never arrived (our payment ID is its idempotency key), so the
+  payment is safely failed and dunning takes over.
 - Webhook events are deduplicated by provider event ID, which is the primary
   key of `webhook_events`.

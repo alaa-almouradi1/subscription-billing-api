@@ -79,12 +79,14 @@ erDiagram
 
 These have no foreign keys into the domain; they exist for reliability.
 
-| Table | Purpose | Key constraint |
-|---|---|---|
-| `invoice_sequences` | Gapless invoice numbers per year, incremented under a row lock | `prefix` primary key |
-| `idempotency_keys` | Stored responses for `Idempotency-Key` replays (24 h) | unique `(scope, idempotency_key)` |
-| `webhook_events` | Provider events already applied | provider event ID as primary key |
-| `outbox_messages` | Domain events waiting to be published to Kafka | auto-increment `id` gives publish order |
+| Table | Purpose | Key constraint | Retention |
+|---|---|---|---|
+| `invoice_sequences` | Gapless invoice numbers per year, incremented under a row lock | `prefix` primary key | forever (one row per year) |
+| `idempotency_keys` | Stored responses for `Idempotency-Key` replays | unique `(scope, idempotency_key)` | 24 hours |
+| `webhook_events` | Provider events already applied | provider event ID as primary key | 30 days |
+| `outbox_messages` | Domain events waiting to be published to Kafka | auto-increment `id` gives publish order | 7 days after publishing |
+
+Old rows are deleted in chunks by the daily `model:prune` command.
 
 ## Constraints that protect money
 
