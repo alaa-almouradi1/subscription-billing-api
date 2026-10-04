@@ -9,6 +9,9 @@ use Illuminate\Support\Str;
 
 class WebhookProcessor
 {
+    /** Retries on deadlocks and lock-wait timeouts (the closure only touches the database). */
+    private const TRANSACTION_ATTEMPTS = 3;
+
     public const RESULT_PROCESSED = 'processed';
 
     public const RESULT_DUPLICATE = 'duplicate';
@@ -68,6 +71,6 @@ class WebhookProcessor
             return in_array($event['type'], ['payment.succeeded', 'payment.failed'], true)
                 ? self::RESULT_PROCESSED
                 : self::RESULT_IGNORED;
-        });
+        }, self::TRANSACTION_ATTEMPTS);
     }
 }

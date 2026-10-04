@@ -23,6 +23,9 @@ use Illuminate\Support\Facades\Log;
  */
 class PaymentOutcomeRecorder
 {
+    /** Retries on deadlocks and lock-wait timeouts (the closure only touches the database). */
+    private const TRANSACTION_ATTEMPTS = 3;
+
     public function __construct(private readonly BillingEvents $events) {}
 
     public function record(Payment $payment, ChargeResult $result): Payment
@@ -78,7 +81,7 @@ class PaymentOutcomeRecorder
             }
 
             return $payment;
-        });
+        }, self::TRANSACTION_ATTEMPTS);
     }
 
     public function failed(Payment $payment, ?string $pspReference, string $code, string $message): Payment
@@ -114,7 +117,7 @@ class PaymentOutcomeRecorder
             }
 
             return $payment;
-        });
+        }, self::TRANSACTION_ATTEMPTS);
     }
 
     private function pending(Payment $payment, string $pspReference): Payment

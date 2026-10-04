@@ -26,6 +26,9 @@ use Illuminate\Support\Facades\Log;
  */
 class PaymentService
 {
+    /** Retries on deadlocks and lock-wait timeouts (the closure only touches the database). */
+    private const TRANSACTION_ATTEMPTS = 3;
+
     public function __construct(
         private readonly PaymentGateway $gateway,
         private readonly PaymentOutcomeRecorder $outcomes,
@@ -100,6 +103,6 @@ class PaymentService
             $payment->save();
 
             return $payment;
-        });
+        }, self::TRANSACTION_ATTEMPTS);
     }
 }

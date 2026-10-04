@@ -12,6 +12,9 @@ use Illuminate\Support\Facades\DB;
 
 class RenewalService
 {
+    /** Retries on deadlocks and lock-wait timeouts (the closure only touches the database). */
+    private const TRANSACTION_ATTEMPTS = 3;
+
     public function __construct(
         private readonly InvoiceIssuer $issuer,
         private readonly BillingEvents $events,
@@ -90,6 +93,6 @@ class RenewalService
             $subscription->save();
 
             return $invoice;
-        });
+        }, self::TRANSACTION_ATTEMPTS);
     }
 }
