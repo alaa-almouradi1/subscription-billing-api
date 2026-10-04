@@ -36,7 +36,9 @@ COPY . .
 RUN composer dump-autoload --optimize --no-dev \
     && chown -R www-data:www-data storage bootstrap/cache
 
-COPY docker/entrypoint.sh /usr/local/bin/billing-entrypoint
+# --chmod: the executable bit is lost when the repository is checked out
+# on Windows, so set it here instead of relying on the file mode in git.
+COPY --chmod=0755 docker/entrypoint.sh /usr/local/bin/billing-entrypoint
 ENTRYPOINT ["billing-entrypoint"]
 CMD ["apache2-foreground"]
 
