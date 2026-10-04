@@ -37,6 +37,7 @@ class InvoiceResource extends JsonResource
                 'description' => $line->description,
                 'amount' => Money::of($line->amount, $this->currency),
             ])),
+            'payments' => PaymentResource::collection($this->whenLoaded('payments')),
         ];
     }
 }

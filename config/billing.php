@@ -17,4 +17,18 @@ return [
 
     'api_keys' => $list(env('BILLING_API_KEYS')),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Payments
+    |--------------------------------------------------------------------------
+    |
+    | "fake" is a deterministic provider driven by test card tokens
+    | (see App\Infrastructure\Payments\FakePaymentGateway).
+    |
+    */
+
+    'payments' => [
+        'gateway' => env('BILLING_PAYMENT_GATEWAY', 'fake'),
+    ],
+
 ];

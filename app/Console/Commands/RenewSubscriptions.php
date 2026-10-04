@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Services\Billing\RenewalService;
+use App\Services\Payments\AutoCollector;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -19,7 +20,7 @@ class RenewSubscriptions extends Command
      */
     private const MAX_PERIODS_PER_RUN = 24;
 
-    public function handle(RenewalService $renewals): int
+    public function handle(RenewalService $renewals, AutoCollector $collector): int
     {
         $now = now();
         $issued = 0;
@@ -30,11 +31,14 @@ class RenewSubscriptions extends Command
                 // A subscription that was down for several periods is caught up
                 // one period (and one invoice) at a time.
                 for ($i = 0; $i < self::MAX_PERIODS_PER_RUN; $i++) {
-                    if ($renewals->renew($id, $now) === null) {
+                    $invoice = $renewals->renew($id, $now);
+
+                    if ($invoice === null) {
                         break;
                     }
 
                     $issued++;
+                    $collector->collect($invoice);
                 }
             } catch (Throwable $e) {
                 // One broken subscription must not block everyone else's billing.

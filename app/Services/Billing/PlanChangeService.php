@@ -9,11 +9,15 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Services\Payments\AutoCollector;
 use Illuminate\Support\Facades\DB;
 
 class PlanChangeService
 {
-    public function __construct(private readonly InvoiceIssuer $issuer) {}
+    public function __construct(
+        private readonly InvoiceIssuer $issuer,
+        private readonly AutoCollector $collector,
+    ) {}
 
     /**
      * Switch plans immediately, prorating the current period.
@@ -26,7 +30,7 @@ class PlanChangeService
      */
     public function change(Subscription $subscription, Plan $newPlan): ?Invoice
     {
-        return DB::transaction(function () use ($subscription, $newPlan) {
+        $invoice = DB::transaction(function () use ($subscription, $newPlan) {
             $subscription = Subscription::query()->with('plan')->lockForUpdate()->findOrFail($subscription->id);
             $oldPlan = $subscription->plan;
 
@@ -59,6 +63,10 @@ class PlanChangeService
 
             return $invoice;
         });
+
+        $this->collector->collect($invoice);
+
+        return $invoice?->refresh();
     }
 
     private function guard(Subscription $subscription, Plan $oldPlan, Plan $newPlan): void

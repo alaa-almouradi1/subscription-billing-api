@@ -61,6 +61,14 @@ class Invoice extends Model
         return $this->hasMany(InvoiceLine::class);
     }
 
+    /**
+     * @return HasMany<Payment, $this>
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
     public function amountDue(): Money
     {
         return Money::of((int) $this->amount_due, $this->currency);
