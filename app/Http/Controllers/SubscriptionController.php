@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CancelSubscriptionRequest;
+use App\Http\Requests\ChangePlanRequest;
 use App\Http\Requests\StoreSubscriptionRequest;
 use App\Http\Resources\SubscriptionResource;
 use App\Models\Customer;
 use App\Models\Plan;
 use App\Models\Subscription;
+use App\Services\Billing\PlanChangeService;
 use App\Services\Billing\SubscriptionService;
 use Illuminate\Http\JsonResponse;
 
@@ -40,5 +42,12 @@ class SubscriptionController extends Controller
         );
 
         return SubscriptionResource::make($subscription->load(['plan', 'latestInvoice']));
+    }
+
+    public function changePlan(ChangePlanRequest $request, Subscription $subscription, PlanChangeService $planChanges): SubscriptionResource
+    {
+        $planChanges->change($subscription, Plan::findOrFail($request->validated('plan_id')));
+
+        return SubscriptionResource::make($subscription->refresh()->load(['plan', 'latestInvoice']));
     }
 }
