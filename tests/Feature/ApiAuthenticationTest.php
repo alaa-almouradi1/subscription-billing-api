@@ -34,6 +34,6 @@ class ApiAuthenticationTest extends TestCase
 
     public function test_the_root_endpoint_describes_the_service(): void
     {
-        $this->get('/')->assertOk()->assertJsonStructure(['service', 'api', 'health']);
+        $this->get('/')->assertOk()->assertJsonStructure(['service', 'api', 'health', 'readiness']);
     }
 }
