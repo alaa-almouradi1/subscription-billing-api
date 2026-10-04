@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\PlanController;
+use App\Http\Controllers\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->middleware('api.key')->group(function () {
@@ -12,4 +13,8 @@ Route::prefix('v1')->middleware('api.key')->group(function () {
     Route::get('plans', [PlanController::class, 'index']);
     Route::post('plans', [PlanController::class, 'store']);
     Route::get('plans/{plan}', [PlanController::class, 'show']);
+
+    Route::post('subscriptions', [SubscriptionController::class, 'store']);
+    Route::get('subscriptions/{subscription}', [SubscriptionController::class, 'show']);
+    Route::post('subscriptions/{subscription}/cancel', [SubscriptionController::class, 'cancel']);
 });
