@@ -50,7 +50,7 @@ class PaymentTest extends TestCase
         $subscription = $this->subscribeWithCard('tok_insufficientFunds');
         $invoice = $subscription->latestInvoice;
 
-        $this->postJson("/api/v1/invoices/{$invoice->id}/pay", ['payment_method' => 'tok_visa'])
+        $this->payInvoice($invoice->id, ['payment_method' => 'tok_visa'])
             ->assertCreated()
             ->assertJsonPath('data.status', 'succeeded')
             ->assertJsonPath('data.amount.amount', 2_000);
@@ -63,7 +63,7 @@ class PaymentTest extends TestCase
     {
         $invoice = $this->subscribeWithCard('tok_chargeDeclined')->latestInvoice;
 
-        $this->postJson("/api/v1/invoices/{$invoice->id}/pay")
+        $this->payInvoice($invoice->id)
             ->assertCreated()
             ->assertJsonPath('data.status', 'failed')
             ->assertJsonPath('data.failure_code', 'card_declined');
@@ -73,7 +73,7 @@ class PaymentTest extends TestCase
     {
         $invoice = $this->subscribeWithCard('tok_visa')->latestInvoice;
 
-        $this->postJson("/api/v1/invoices/{$invoice->id}/pay")
+        $this->payInvoice($invoice->id)
             ->assertConflict()
             ->assertJsonPath('error.code', 'invoice_not_payable');
 
@@ -87,7 +87,7 @@ class PaymentTest extends TestCase
         $this->assertSame(PaymentStatus::Processing, $invoice->payments()->first()->status);
         $this->assertSame(InvoiceStatus::Open, $invoice->fresh()->status);
 
-        $this->postJson("/api/v1/invoices/{$invoice->id}/pay", ['payment_method' => 'tok_visa'])
+        $this->payInvoice($invoice->id, ['payment_method' => 'tok_visa'])
             ->assertConflict()
             ->assertJsonPath('error.code', 'payment_in_progress');
     }
@@ -96,7 +96,7 @@ class PaymentTest extends TestCase
     {
         $invoice = Invoice::factory()->create();
 
-        $this->postJson("/api/v1/invoices/{$invoice->id}/pay", ['payment_method' => 'tok_timeout'])
+        $this->payInvoice($invoice->id, ['payment_method' => 'tok_timeout'])
             ->assertStatus(503)
             ->assertJsonPath('error.code', 'gateway_unavailable');
 
