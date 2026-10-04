@@ -10,3 +10,6 @@ Schedule::command('billing:renew')->everyMinute()->withoutOverlapping()->onOneSe
 // Deletes expired idempotency keys, old webhook events and published outbox
 // messages (see the prunable() methods and config/billing.php "retention").
 Schedule::command('model:prune')->daily()->onOneServer();
+
+// Settles payments stuck in "processing" when a provider webhook was lost.
+Schedule::command('payments:reconcile')->everyFiveMinutes()->withoutOverlapping()->onOneServer();

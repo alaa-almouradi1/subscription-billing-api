@@ -55,6 +55,19 @@ final class FakePaymentGateway implements PaymentGateway
         return $this->results[$request->paymentId] = $result;
     }
 
+    public function retrieve(string $paymentId): ?ChargeResult
+    {
+        return $this->results[$paymentId] ?? null;
+    }
+
+    /**
+     * Test helper: the provider decides a pending charge later.
+     */
+    public function settle(string $paymentId, ChargeResult $result): void
+    {
+        $this->results[$paymentId] = $result;
+    }
+
     /**
      * @return list<ChargeRequest>
      */
