@@ -49,7 +49,7 @@ class IdempotencyTest extends TestCase
     {
         $invoice = Invoice::factory()->create();
         IdempotencyKey::create([
-            'scope' => hash('sha256', self::API_KEY),
+            'scope' => hash('sha256', 'test'),
             'idempotency_key' => 'in-flight',
             'fingerprint' => hash('sha256', "POST api/v1/invoices/{$invoice->id}/pay ".json_encode([])),
             'status' => IdempotencyKey::STATUS_PROCESSING,
@@ -63,7 +63,10 @@ class IdempotencyTest extends TestCase
 
     public function test_keys_are_scoped_per_api_client(): void
     {
-        config(['billing.api_keys' => [self::API_KEY, 'other-client']]);
+        $this->useApiClients([
+            ['name' => 'test', 'key' => self::API_KEY, 'scopes' => ['*']],
+            ['name' => 'other', 'key' => 'other-client', 'scopes' => ['*']],
+        ]);
         $invoice = Invoice::factory()->create();
 
         $this->payInvoice($invoice->id, idempotencyKey: 'shared')->assertCreated();

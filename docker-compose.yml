@@ -21,7 +21,12 @@ x-app: &app
     CACHE_STORE: database
     SESSION_DRIVER: array
     QUEUE_CONNECTION: sync
-    BILLING_API_KEYS: local-dev-key
+    # Local-only demo keys (see .env.example): local-dev-key has every scope,
+    # dunning-local-key only what the dunning service needs, prometheus-local-key ops.read.
+    BILLING_API_CLIENTS: >-
+      [{"name":"local-dev","key_sha256":"ed5a18fb8f807f996d649e379d3f35f39c543a91bdbf88c492f2ebd10d4df86c","scopes":["*"]},
+      {"name":"dunning-service","key_sha256":"4b80b5560645b6733df92f41a008cf4462ed86185c6700db609ba1e7675a91a0","scopes":["billing.read","payments.write","invoices.write","subscriptions.write"]},
+      {"name":"prometheus","key_sha256":"ccdbae7394b6ab58177effcc5b42bb12219b099da90691424ad5d571b4224a4d","scopes":["ops.read"]}]
     BILLING_WEBHOOK_SECRET: whsec_local_dev
     BILLING_EVENTS_DRIVER: kafka
     KAFKA_BROKERS: kafka:9092
