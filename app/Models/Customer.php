@@ -15,6 +15,10 @@ class Customer extends Model
     /** @use HasFactory<CustomerFactory> */
     use HasFactory, HasUuids;
 
+    protected $attributes = [
+        'credit_balance' => 0,
+    ];
+
     public function creditBalance(string $currency): Money
     {
         if ($this->credit_currency !== null && $this->credit_currency !== $currency) {

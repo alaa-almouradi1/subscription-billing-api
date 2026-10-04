@@ -16,6 +16,11 @@ class Plan extends Model
     /** @use HasFactory<PlanFactory> */
     use HasFactory, HasUuids;
 
+    protected $attributes = [
+        'trial_days' => 0,
+        'active' => true,
+    ];
+
     public function price(): Money
     {
         return Money::of((int) $this->amount, $this->currency);
