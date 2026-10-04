@@ -12,7 +12,7 @@ class ChangePlanRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'plan_id' => ['required', 'uuid', 'exists:plans,id'],
+            'plan_id' => ['bail', 'required', 'uuid', 'exists:plans,id'],
         ];
     }
 }

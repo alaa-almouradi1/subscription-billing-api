@@ -12,8 +12,8 @@ class StoreSubscriptionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'customer_id' => ['required', 'uuid', 'exists:customers,id'],
-            'plan_id' => ['required', 'uuid', 'exists:plans,id'],
+            'customer_id' => ['bail', 'required', 'uuid', 'exists:customers,id'],
+            'plan_id' => ['bail', 'required', 'uuid', 'exists:plans,id'],
         ];
     }
 }

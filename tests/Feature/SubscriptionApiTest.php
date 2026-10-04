@@ -89,4 +89,11 @@ class SubscriptionApiTest extends TestCase
             ->assertConflict()
             ->assertJsonPath('error.code', 'subscription_canceled');
     }
+
+    public function test_malformed_ids_are_validation_errors_not_server_errors(): void
+    {
+        $this->postJson('/api/v1/subscriptions', ['customer_id' => 'not-a-uuid', 'plan_id' => 'nope'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['customer_id', 'plan_id']);
+    }
 }

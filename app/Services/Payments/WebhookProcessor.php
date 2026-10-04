@@ -5,6 +5,7 @@ namespace App\Services\Payments;
 use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class WebhookProcessor
 {
@@ -39,7 +40,10 @@ class WebhookProcessor
                 return self::RESULT_DUPLICATE;
             }
 
-            $payment = Payment::find($event['data']['payment_id'] ?? null);
+            $paymentId = (string) ($event['data']['payment_id'] ?? '');
+            // Guard before querying: MariaDB's native UUID type rejects
+            // malformed values, so never send them to the database.
+            $payment = Str::isUuid($paymentId) ? Payment::find($paymentId) : null;
 
             if ($payment === null) {
                 Log::warning('Webhook for an unknown payment', ['event_id' => $event['id']]);
