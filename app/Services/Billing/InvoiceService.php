@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\DB;
 
 class InvoiceService
 {
+    /** Retries on deadlocks and lock-wait timeouts (the closure only touches the database). */
+    private const TRANSACTION_ATTEMPTS = 3;
+
     public function __construct(private readonly BillingEvents $events) {}
 
     public function void(Invoice $invoice): Invoice
@@ -45,6 +48,6 @@ class InvoiceService
             };
 
             return $invoice;
-        });
+        }, self::TRANSACTION_ATTEMPTS);
     }
 }

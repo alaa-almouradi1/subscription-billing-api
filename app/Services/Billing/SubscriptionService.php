@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\DB;
 
 class SubscriptionService
 {
+    /** Retries on deadlocks and lock-wait timeouts (the closure only touches the database). */
+    private const TRANSACTION_ATTEMPTS = 3;
+
     public function __construct(
         private readonly InvoiceIssuer $issuer,
         private readonly AutoCollector $collector,
@@ -75,7 +78,7 @@ class SubscriptionService
             }
 
             return $subscription;
-        });
+        }, self::TRANSACTION_ATTEMPTS);
 
         // Charge after commit: the payment provider is never called while
         // database locks are held.
@@ -107,6 +110,6 @@ class SubscriptionService
             }
 
             return $subscription;
-        });
+        }, self::TRANSACTION_ATTEMPTS);
     }
 }
