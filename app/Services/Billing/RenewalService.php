@@ -8,7 +8,6 @@ use App\Models\Invoice;
 use App\Models\Subscription;
 use App\Outbox\BillingEvents;
 use DateTimeInterface;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class RenewalService
@@ -19,18 +18,30 @@ class RenewalService
     ) {}
 
     /**
-     * IDs of subscriptions whose current period has ended.
+     * Call $callback with the ID of every subscription whose period has ended.
      *
-     * @return Collection<int, string>
+     * Reads in keyset-paginated chunks (WHERE id > last ORDER BY id), so memory
+     * stays flat and no OFFSET scan slows down with millions of rows. The
+     * filter matches the (status, current_period_end) index.
+     *
+     * @param  callable(string): void  $callback
      */
-    public function dueSubscriptionIds(DateTimeInterface $now, int $limit): Collection
+    public function eachDueSubscriptionId(DateTimeInterface $now, callable $callback, int $chunk = 1000): void
     {
-        return Subscription::query()
-            ->where('status', '!=', SubscriptionStatus::Canceled)
+        $renewing = array_values(array_filter(
+            SubscriptionStatus::cases(),
+            fn (SubscriptionStatus $status) => $status->renews(),
+        ));
+
+        Subscription::query()
+            ->select('id')
+            ->whereIn('status', $renewing)
             ->where('current_period_end', '<=', $now)
-            ->orderBy('current_period_end')
-            ->limit($limit)
-            ->pluck('id');
+            ->chunkById($chunk, function ($subscriptions) use ($callback) {
+                foreach ($subscriptions as $subscription) {
+                    $callback((string) $subscription->id);
+                }
+            });
     }
 
     /**

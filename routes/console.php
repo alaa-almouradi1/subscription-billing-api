@@ -2,9 +2,10 @@
 
 use Illuminate\Support\Facades\Schedule;
 
-// Renewal is idempotent, so running it often is safe; withoutOverlapping()
-// only avoids wasted work when a run takes longer than a minute.
-Schedule::command('billing:renew')->everyMinute()->withoutOverlapping();
+// Renewal is idempotent, so running it often is safe. onOneServer() lets
+// several scheduler instances run without queueing the same work twice
+// (needs a shared cache store such as Redis); the jobs run on queue workers.
+Schedule::command('billing:renew')->everyMinute()->withoutOverlapping()->onOneServer();
 
 // Deletes expired idempotency keys (see App\Models\IdempotencyKey::prunable).
 Schedule::command('model:prune')->daily();
